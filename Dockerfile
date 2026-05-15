@@ -2,18 +2,19 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies first (better for caching)
+# Install native operating system dependencies required by Prisma
+RUN apk add --no-cache openssl openssl-dev
+
+# Install library dependencies (cached layers)
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the application code
+# Bundle application source code
 COPY . .
 
-# Generate Prisma client for database interactions
+# Generate the Prisma database client
 RUN npx prisma generate
 
-# Open Port 3038 to match CloudPanel
 EXPOSE 3038
 
-# Start the application
 CMD ["npm", "run", "start"]
