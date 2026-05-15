@@ -28,11 +28,11 @@ jobs:
             cd /home/s2140775-node/htdocs/s2140775n.ncgrp.xyz/hospital-app
             git pull origin main
             
-            echo "Rebuilding container layout..."
+            echo "Stopping old container blocks..."
+            docker compose down --remove-orphans
+            
+            echo "Rebuilding and standing up optimized architecture layers..."
             docker compose up --build -d
             
-            echo "Allowing runtime environment to settle..."
-            sleep 10
-            
-            echo "Executing optimized schema synchronization..."
-            NODE_OPTIONS="--max-old-space-size=128" docker compose exec -T app npx prisma db push --accept-data-loss --skip-generate
+            echo "Allowing system instances to settle..."
+            sleep 5
