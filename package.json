@@ -1,26 +1,24 @@
 {
-  "name": "hospital-room-management",
+  "name": "hospital-app",
   "version": "1.0.0",
-  "description": "Hospital room management system for CloudPanel and Docker",
+  "description": "Hospital Room Management System Backend",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "prisma:generate": "npx prisma generate",
-    "prisma:migrate": "npx prisma migrate dev"
+    "test": "node tests/patient.test.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.0.0",
-    "bcryptjs": "^2.4.3",
+    "@prisma/client": "^5.22.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.0",
-    "express": "^4.18.2",
-    "helmet": "^7.0.0",
-    "jsonwebtoken": "^9.0.0",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.0",
-    "prisma": "^5.0.0"
+    "prisma": "^5.22.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }

@@ -31,3 +31,4 @@ jobs:
             echo "Waiting for database container to stabilize..."
             sleep 10
             NODE_OPTIONS="--max-old-space-size=256" docker compose exec -T app npx prisma db push --accept-data-loss
+            NODE_OPTIONS="--max-old-space-size=256" docker compose exec -T app npx prisma db seed
