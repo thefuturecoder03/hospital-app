@@ -1,0 +1,28 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Room {
+  id           String    @id @default(uuid())
+  roomNumber   String    @unique
+  capacity     Int
+  isIsolated   Boolean   @default(false)
+  patients     Patient[]
+}
+
+model Patient {
+  id                String   @id @default(uuid())
+  name              String
+  condition         String
+  priorityScore     Int      @default(0)
+  age               Int
+  isHighRisk        Boolean  @default(false)
+  assignedRoomId    String?
+  assignedRoom      Room?    @relation(fields: [assignedRoomId], references: [id])
+  createdAt         DateTime @default(now())
+}
