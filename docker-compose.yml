@@ -3,8 +3,10 @@ services:
     build: .
     ports:
       - "3038:3038"
-    env_file:
-      - .env
+    environment:
+      - PORT=3038
+      - DATABASE_URL=postgresql://admin:securepassword@db:5432/hospital_db?schema=public
+      - JWT_SECRET=hospital_management_secure_key_2024
     depends_on:
       - db
     restart: always
@@ -19,6 +21,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: always
 
 volumes:
   postgres_data:
