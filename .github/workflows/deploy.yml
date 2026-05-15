@@ -27,4 +27,4 @@ jobs:
           script: |
             cd /home/s2140775-node/htdocs/s2140775n.ncgrp.xyz/hospital-app
             git pull origin main
-            docker-compose up --build -d
+            docker compose up --build -d
