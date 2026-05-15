@@ -8,7 +8,8 @@ services:
       - DATABASE_URL=postgresql://admin:securepassword@db:5432/hospital_db?schema=public
       - JWT_SECRET=hospital_management_secure_key_2024
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: always
 
   db:
@@ -21,6 +22,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d hospital_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: always
 
 volumes:
