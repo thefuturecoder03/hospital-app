@@ -27,8 +27,15 @@ jobs:
           script: |
             cd /home/s2140775-node/htdocs/s2140775n.ncgrp.xyz/hospital-app
             git pull origin main
+            
+            echo "Stopping old container tasks..."
+            docker compose down
+            
+            echo "Rebuilding and standing up containers..."
             docker compose up --build -d
-            echo "Waiting for database container to stabilize..."
-            sleep 10
+            
+            echo "Waiting for database and engine to stabilize..."
+            sleep 15
+            
+            echo "Executing database migration and seeding layers..."
             NODE_OPTIONS="--max-old-space-size=256" docker compose exec -T app npx prisma db push --accept-data-loss
-            NODE_OPTIONS="--max-old-space-size=256" docker compose exec -T app npx prisma db seed

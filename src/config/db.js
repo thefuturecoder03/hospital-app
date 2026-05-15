@@ -1,15 +1,13 @@
 const { PrismaClient } = require('@prisma/client');
 
-// Use Docker runtime variables if the local .env file is hidden
-const databaseUrl = process.env.DATABASE_URL || "postgresql://admin:securepassword@db:5432/hospital_db?schema=public";
-
+// Force evaluation of the Docker runtime network connection link
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: databaseUrl,
-    },
+      url: process.env.DATABASE_URL || "postgresql://admin:securepassword@db:5432/hospital_db?schema=public"
+    }
   },
-  log: ['error', 'warn'],
+  log: ['error', 'warn']
 });
 
 module.exports = prisma;
