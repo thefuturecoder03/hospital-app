@@ -6,7 +6,7 @@ exports.createPatient = async (req, res) => {
         const { name, age, condition, isHighRisk } = req.body;
         const priorityScore = calculatePriority({ age, condition, isHighRisk });
 
-        // 1. Identify destination matching rules based on medical criteria
+        // Identify destination matching rules based on medical criteria
         const isIsolationNeeded = (
             condition === 'Infectious' || 
             condition === 'Infectious Disease (Isolation Priority)' ||
@@ -15,7 +15,7 @@ exports.createPatient = async (req, res) => {
         );
         const targetRoomType = isIsolationNeeded ? 'Isolation' : 'Standard';
 
-        // 2. Query database for the first open, matching vacant room model
+        // Query database for the first open, matching vacant room model
         const availableRoom = await prisma.room.findFirst({
             where: {
                 type: targetRoomType,
@@ -27,7 +27,7 @@ exports.createPatient = async (req, res) => {
         let assignedRoomId = null;
         let finalStatus = "Pending Assignment";
 
-        // 3. Update room occupancy records atomically if space exists
+        // Update room occupancy records atomically if space exists
         if (availableRoom) {
             assignedRoomId = availableRoom.id;
             const newCapacity = availableRoom.capacity - 1;
@@ -42,7 +42,7 @@ exports.createPatient = async (req, res) => {
             finalStatus = `Room ${availableRoom.number}`;
         }
 
-        // 4. Save patient record linked directly to the room relational schema
+        // Save patient record linked directly to the room relational schema
         const newPatient = await prisma.patient.create({
             data: {
                 name,
@@ -71,13 +71,11 @@ exports.createPatient = async (req, res) => {
 
 exports.getAllPatients = async (req, res) => {
     try {
-        // Query database and populate matching room metrics automatically
         const patients = await prisma.patient.findMany({
             include: { room: true },
             orderBy: { priorityScore: 'desc' }
         });
 
-        // Map live properties to status string parameters for UI cards
         const formattedPatients = patients.map(pt => ({
             ...pt,
             status: pt.room ? `Room ${pt.room.number}` : "Pending Assignment"
