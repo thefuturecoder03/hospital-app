@@ -7,28 +7,22 @@ const morgan = require('morgan');
 const patientRoutes = require('./routes/patientRoutes');
 const roomRoutes = require('./routes/roomRoutes');
 
-// Import Auth Controller (for the login route)
+// Import Auth Controller
 const authController = require('./controllers/authController');
 
 const app = express();
 
+// --- Visual Interface Setup ---
+app.use(express.static('src/public'));
+
 // --- Middleware ---
-app.use(helmet()); // Security: Sets various HTTP headers
-app.use(cors());   // Security: Enables Cross-Origin Resource Sharing
-app.use(morgan('dev')); // Usability: Logs requests to the console
-app.use(express.json()); // Functionality: Parses incoming JSON data
+app.use(helmet()); 
+app.use(cors());   
+app.use(morgan('dev')); 
+app.use(express.json()); 
 
 // --- Routes ---
-
-// Health Check (Root)
-app.get('/', (req, res) => {
-    res.json({ status: "Hospital Management API Online" });
-});
-
-// Authentication Route
 app.post('/api/auth/login', authController.login);
-
-// Hospital Logic Routes
 app.use('/api/patients', patientRoutes);
 app.use('/api/rooms', roomRoutes);
 
@@ -39,5 +33,3 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-
-// Testing automated live deployment

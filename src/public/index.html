@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hospital Room Management System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f9; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        h1 { color: #2c3e50; }
+        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        button:hover { background: #219653; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🏥 Hospital Management</h1>
+        <p>System Status: <strong style="color: green;">Connected</strong></p>
+        <hr>
+        <h3>Admit New Patient</h3>
+        <label>Patient Name:</label>
+        <input type="text" id="name" placeholder="John Doe">
+        
+        <label>Age:</label>
+        <input type="number" id="age" placeholder="45">
+
+        <label>Medical Condition:</label>
+        <select id="condition">
+            <option value="Standard">Standard Care</option>
+            <option value="Respiratory">Respiratory Issues</option>
+            <option value="Infectious">Infectious Disease (Isolation Priority)</option>
+        </select>
+        
+        <button onclick="admitPatient()">Evaluate & Assign Room</button>
+    </div>
+
+    <script>
+        function admitPatient() {
+            alert('Sending data to your automated priority engine...');
+        }
+    </script>
+</body>
+</html>
