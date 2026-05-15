@@ -2,41 +2,136 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hospital Room Management System</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f9; }
-        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        h1 { color: #2c3e50; }
-        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto; margin-bottom: 20px; }
+        h1 { color: #2c3e50; margin-top: 0; }
+        input, select { width: 100%; padding: 10px; margin: 10px 0 20px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        label { font-weight: bold; color: #34495e; }
+        button { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
+        button.login-btn { background: #2980b9; }
+        button.login-btn:hover { background: #2471a3; }
         button:hover { background: #219653; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+        .status-badge { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .locked { background: #e74c3c; color: white; }
+        .unlocked { background: #2ecc71; color: white; }
     </style>
 </head>
 <body>
+
+    <!-- Staff Authentication Card -->
+    <div class="card">
+        <h1>🔐 Staff Authentication</h1>
+        <p>Security Link: <span id="auth-status" class="status-badge locked">Locked (No Token)</span></p>
+        <hr>
+        <label for="email">Staff Email:</label>
+        <input type="email" id="email" value="admin@hospital.com">
+        
+        <label for="password">Password:</label>
+        <input type="password" id="password" value="password123">
+        
+        <button class="login-btn" onclick="loginStaff()">Authenticate Session</button>
+    </div>
+
+    <!-- Patient Intake Card -->
     <div class="card">
         <h1>🏥 Hospital Management</h1>
-        <p>System Status: <strong style="color: green;">Connected</strong></p>
         <hr>
         <h3>Admit New Patient</h3>
-        <label>Patient Name:</label>
+        
+        <label for="name">Patient Name:</label>
         <input type="text" id="name" placeholder="John Doe">
         
-        <label>Age:</label>
+        <label for="age">Age:</label>
         <input type="number" id="age" placeholder="45">
 
-        <label>Medical Condition:</label>
+        <label for="condition">Medical Condition:</label>
         <select id="condition">
             <option value="Standard">Standard Care</option>
             <option value="Respiratory">Respiratory Issues</option>
             <option value="Infectious">Infectious Disease (Isolation Priority)</option>
+            <option value="Immuno-compromised">Immuno-compromised</option>
         </select>
         
         <button onclick="admitPatient()">Evaluate & Assign Room</button>
     </div>
 
     <script>
-        function admitPatient() {
-            alert('Sending data to your automated priority engine...');
+        let authToken = "";
+
+        async function loginStaff() {
+            const emailVal = document.getElementById('email').value;
+            const passwordVal = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailVal, password: passwordVal })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.token) {
+                    authToken = result.token;
+                    const statusBadge = document.getElementById('auth-status');
+                    statusBadge.textContent = "Unlocked (Active Session)";
+                    statusBadge.className = "status-badge unlocked";
+                    alert("Authentication successful! Session unlocked.");
+                } else {
+                    alert(`Login Failed: ${result.message || 'Invalid credentials'}`);
+                }
+            } catch (error) {
+                console.error('Auth Error:', error);
+                alert('Connection to auth engine failed.');
+            }
+        }
+
+        async function admitPatient() {
+            if (!authToken) {
+                alert('Access Denied. Please authenticate session above first.');
+                return;
+            }
+
+            const patientName = document.getElementById('name').value;
+            const patientAge = parseInt(document.getElementById('age').value);
+            const patientCondition = document.getElementById('condition').value;
+
+            if (!patientName || !patientAge) {
+                alert('Please enter a name and age.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        name: patientName,
+                        age: patientAge,
+                        condition: patientCondition,
+                        isHighRisk: patientAge > 70
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`📋 Evaluation Complete!\n\nPatient: ${result.patient.name}\nPriority Score: ${result.patient.priorityScore}\nStatus: ${result.patient.status}`);
+                } else {
+                    alert(`Error: ${result.error || result.message || 'Could not process evaluation.'}`);
+                }
+
+            } catch (error) {
+                console.error('Transmission Error:', error);
+                alert('Failed to connect to the hospital processing engine.');
+            }
         }
     </script>
 </body>
