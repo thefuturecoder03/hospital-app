@@ -28,11 +28,11 @@ jobs:
             cd /home/s2140775-node/htdocs/s2140775n.ncgrp.xyz/hospital-app
             git pull origin main
             
-            echo "Stopping old container blocks..."
+            echo "Stopping lingering container tasks..."
             docker compose down --remove-orphans
             
-            echo "Rebuilding and standing up optimized architecture layers..."
+            echo "Compiling and standing up container architecture..."
             docker compose up --build -d
             
-            echo "Allowing system instances to settle..."
+            echo "Allowing services to stabilize..."
             sleep 5
