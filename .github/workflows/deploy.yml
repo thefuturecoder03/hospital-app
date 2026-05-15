@@ -28,11 +28,13 @@ jobs:
             cd /home/s2140775-node/htdocs/s2140775n.ncgrp.xyz/hospital-app
             git pull origin main
             
-            echo "Stopping lingering container tasks..."
+            echo "Rebuilding container blocks..."
             docker compose down --remove-orphans
-            
-            echo "Compiling and standing up container architecture..."
             docker compose up --build -d
             
-            echo "Allowing services to stabilize..."
-            sleep 5
+            echo "Allowing system instances to settle..."
+            sleep 10
+            
+            echo "Forcing dynamic relational database table migration and seed updates..."
+            NODE_OPTIONS="--max-old-space-size=128" docker compose exec -T app npx prisma db push --accept-data-loss --skip-generate
+            NODE_OPTIONS="--max-old-space-size=128" docker compose exec -T app npx prisma db seed

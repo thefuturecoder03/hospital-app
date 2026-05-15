@@ -7,22 +7,34 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Room {
-  id           String    @id @default(uuid())
-  roomNumber   String    @unique
-  capacity     Int
-  isIsolated   Boolean   @default(false)
-  patients     Patient[]
+model User {
+  id       String @id @default(uuid())
+  email    String @unique
+  password String
+  role     String @default("STAFF")
 }
 
 model Patient {
-  id                String   @id @default(uuid())
-  name              String
-  condition         String
-  priorityScore     Int      @default(0)
-  age               Int
-  isHighRisk        Boolean  @default(false)
-  assignedRoomId    String?
-  assignedRoom      Room?    @relation(fields: [assignedRoomId], references: [id])
-  createdAt         DateTime @default(now())
+  id            String   @id @default(uuid())
+  name          String
+  age           Int
+  condition     String
+  priorityScore Int
+  isHighRisk    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  
+  // Relational link definition to Room
+  roomId        String?
+  room          Room?    @relation(fields: [roomId], references: [id])
+}
+
+model Room {
+  id          String    @id
+  number      String    @unique
+  type        String
+  capacity    Int
+  isAvailable Boolean   @default(true)
+  
+  // Back-reference relation list link for Prisma compliance
+  patients    Patient[]
 }
