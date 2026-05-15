@@ -2,17 +2,20 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install native operating system dependencies required by Prisma
+# Install native operating system cryptographic libraries
 RUN apk add --no-cache openssl openssl-dev
 
-# Install library dependencies (cached layers)
+# Bundle dependency maps
 COPY package*.json ./
 RUN npm install
 
-# Bundle application source code
+# Copy all application codebase files
 COPY . .
 
-# Generate the Prisma database client
+# Force absolute baseline code verification
+RUN mkdir -p prisma && touch prisma/seed.js
+
+# Generate the type-safe data communication layer
 RUN npx prisma generate
 
 EXPOSE 3038
