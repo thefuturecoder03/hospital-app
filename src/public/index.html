@@ -61,7 +61,6 @@
             <option value="Standard">Standard Care</option>
             <option value="Respiratory">Respiratory Issues</option>
             <option value="Infectious">Infectious Disease (Isolation Priority)</option>
-            <option value="Immuno-compromised">Immuno-compromised</option>
         </select>
         
         <button onclick="admitPatient()">Evaluate & Assign Room</button>
@@ -128,7 +127,16 @@
 
             const patientName = document.getElementById('name').value;
             const patientAge = parseInt(document.getElementById('age').value);
-            const patientCondition = document.getElementById('condition').value;
+            let patientCondition = document.getElementById('condition').value;
+
+            // Normalize values before transmitting across the network API
+            if (patientCondition.includes("Infectious")) {
+                patientCondition = "Infectious";
+            } else if (patientCondition.includes("Respiratory")) {
+                patientCondition = "Respiratory";
+            } else {
+                patientCondition = "Standard";
+            }
 
             if (!patientName || !patientAge) {
                 alert('Please enter a name and age.');
