@@ -6,43 +6,35 @@ exports.createPatient = async (req, res) => {
         const { name, age, condition, isHighRisk } = req.body;
         const priorityScore = calculatePriority({ age, condition, isHighRisk });
 
-        // Identify destination matching rules based on medical criteria
-        const isIsolationNeeded = (
-            condition === 'Infectious' || 
-            condition === 'Infectious Disease (Isolation Priority)' ||
-            condition === 'Respiratory' || 
-            condition === 'Respiratory Issues'
-        );
-        const targetRoomType = isIsolationNeeded ? 'Isolation' : 'Standard';
-
-        // Query database for the first open, matching vacant room model
+        // 1. Find the first empty room in the entire database regardless of condition
         const availableRoom = await prisma.room.findFirst({
             where: {
-                type: targetRoomType,
                 isAvailable: true,
                 capacity: { gt: 0 }
+            },
+            orderBy: {
+                number: 'asc' // Fill them up in clean numerical order (101, 102, 103...)
             }
         });
 
         let assignedRoomId = null;
         let finalStatus = "Pending Assignment";
 
-        // Update room occupancy records atomically if space exists
+        // 2. Lock the room down atomically by dropping its remaining capacity to 0
         if (availableRoom) {
             assignedRoomId = availableRoom.id;
-            const newCapacity = availableRoom.capacity - 1;
             
             await prisma.room.update({
                 where: { id: availableRoom.id },
                 data: {
-                    capacity: newCapacity,
-                    isAvailable: newCapacity > 0
+                    capacity: 0,
+                    isAvailable: false // Room is now completely occupied
                 }
             });
             finalStatus = `Room ${availableRoom.number}`;
         }
 
-        // Save patient record linked directly to the room relational schema
+        // 3. Save patient record linked to their unique assigned room layout
         const newPatient = await prisma.patient.create({
             data: {
                 name,
@@ -71,13 +63,11 @@ exports.createPatient = async (req, res) => {
 
 exports.getAllPatients = async (req, res) => {
     try {
-        // Query database and populate matching room metrics automatically
         const patients = await prisma.patient.findMany({
             include: { room: true },
             orderBy: { priorityScore: 'desc' }
         });
 
-        // Map live properties to status string parameters for UI cards
         const formattedPatients = patients.map(pt => ({
             ...pt,
             status: pt.room ? `Room ${pt.room.number}` : "Pending Assignment"
@@ -90,46 +80,32 @@ exports.getAllPatients = async (req, res) => {
     }
 };
 
-// DELETE A PATIENT RECORD AND FREE UP BED CAPACITY ATOMICALLY
 exports.deletePatient = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Find the patient to check if they have a room assigned
-        const patient = await prisma.patient.findUnique({
-            where: { id }
-        });
+        const patient = await prisma.patient.findUnique({ where: { id } });
 
         if (!patient) {
             return res.status(404).json({ error: "Patient record not found." });
         }
 
-        // If the patient was assigned to a room, restore +1 bed capacity
+        // When discharging, reset the room capacity cleanly back to 1 bed open
         if (patient.roomId) {
-            const assignedRoom = await prisma.room.findUnique({
-                where: { id: patient.roomId }
+            await prisma.room.update({
+                where: { id: patient.roomId },
+                data: {
+                    capacity: 1,
+                    isAvailable: true
+                }
             });
-
-            if (assignedRoom) {
-                const restoredCapacity = assignedRoom.capacity + 1;
-                await prisma.room.update({
-                    where: { id: patient.roomId },
-                    data: {
-                        capacity: restoredCapacity,
-                        isAvailable: true
-                    }
-                });
-            }
         }
 
-        // Permanently remove the patient row from the database
-        await prisma.patient.delete({
-            where: { id }
-        });
+        await prisma.patient.delete({ where: { id } });
 
-        res.status(200).json({ message: "Patient record removed and bed capacity restored." });
+        res.status(200).json({ message: "Patient discharged and room freed." });
     } catch (error) {
         console.error("Database Deletion Failure:", error);
-        res.status(500).json({ error: "Failed to execute patient removal tracking metrics." });
+        res.status(500).json({ error: "Failed to execute patient removal." });
     }
 };

@@ -2,46 +2,26 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding hospital rooms configuration data...');
+  console.log('🔄 Seeding exactly 100 individual rooms (1 bed each)...');
 
-  // Create default isolation and standard rooms
-  await prisma.room.upsert({
-    where: { id: 'room-101' },
-    update: {},
-    create: {
-      id: 'room-101',
-      number: '101',
-      type: 'Isolation',
-      capacity: 1,
-      isAvailable: true
-    }
-  });
+  // Loop to automatically generate 100 empty rooms from Room 101 to Room 200
+  for (let i = 101; i <= 200; i++) {
+    const roomNumber = i.toString();
+    
+    await prisma.room.upsert({
+      where: { id: `room-${roomNumber}` },
+      update: { capacity: 1, isAvailable: true }, // Ensure capacity is reset to 1
+      create: {
+        id: `room-${roomNumber}`,
+        number: roomNumber,
+        type: 'Standard', // Standard base so anyone can enter any room layout
+        capacity: 1,      // Exactly 1 bed per room
+        isAvailable: true
+      }
+    });
+  }
 
-  await prisma.room.upsert({
-    where: { id: 'room-102' },
-    update: {},
-    create: {
-      id: 'room-102',
-      number: '102',
-      type: 'Isolation',
-      capacity: 1,
-      isAvailable: true
-    }
-  });
-
-  await prisma.room.upsert({
-    where: { id: 'room-201' },
-    update: {},
-    create: {
-      id: 'room-201',
-      number: '201',
-      type: 'Standard',
-      capacity: 4,
-      isAvailable: true
-    }
-  });
-
-  console.log('Database hospital room seeding complete!');
+  console.log('✅ Success! 100 total rooms initialized with 1 bed each.');
 }
 
 main()
