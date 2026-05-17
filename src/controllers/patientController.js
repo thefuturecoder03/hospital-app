@@ -71,11 +71,13 @@ exports.createPatient = async (req, res) => {
 
 exports.getAllPatients = async (req, res) => {
     try {
+        // Query database and populate matching room metrics automatically
         const patients = await prisma.patient.findMany({
             include: { room: true },
             orderBy: { priorityScore: 'desc' }
         });
 
+        // Map live properties to status string parameters for UI cards
         const formattedPatients = patients.map(pt => ({
             ...pt,
             status: pt.room ? `Room ${pt.room.number}` : "Pending Assignment"
@@ -85,5 +87,49 @@ exports.getAllPatients = async (req, res) => {
     } catch (error) {
         console.error("Database Retrieval Error:", error);
         res.status(500).json({ error: "Failed to query patient table registry." });
+    }
+};
+
+// DELETE A PATIENT RECORD AND FREE UP BED CAPACITY ATOMICALLY
+exports.deletePatient = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Find the patient to check if they have a room assigned
+        const patient = await prisma.patient.findUnique({
+            where: { id }
+        });
+
+        if (!patient) {
+            return res.status(404).json({ error: "Patient record not found." });
+        }
+
+        // If the patient was assigned to a room, restore +1 bed capacity
+        if (patient.roomId) {
+            const assignedRoom = await prisma.room.findUnique({
+                where: { id: patient.roomId }
+            });
+
+            if (assignedRoom) {
+                const restoredCapacity = assignedRoom.capacity + 1;
+                await prisma.room.update({
+                    where: { id: patient.roomId },
+                    data: {
+                        capacity: restoredCapacity,
+                        isAvailable: true
+                    }
+                });
+            }
+        }
+
+        // Permanently remove the patient row from the database
+        await prisma.patient.delete({
+            where: { id }
+        });
+
+        res.status(200).json({ message: "Patient record removed and bed capacity restored." });
+    } catch (error) {
+        console.error("Database Deletion Failure:", error);
+        res.status(500).json({ error: "Failed to execute patient removal tracking metrics." });
     }
 };

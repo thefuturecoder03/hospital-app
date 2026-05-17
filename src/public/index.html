@@ -6,7 +6,7 @@
     <title>Hospital Room Management System</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f9; display: flex; flex-direction: column; gap: 20px; }
-        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: auto; width: 100%; box-sizing: border-box; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 700px; margin: auto; width: 100%; box-sizing: border-box; }
         h1, h3 { color: #2c3e50; margin-top: 0; }
         input, select { width: 100%; padding: 10px; margin: 10px 0 20px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
         label { font-weight: bold; color: #34495e; }
@@ -16,6 +16,8 @@
         button:hover { background: #219653; }
         button.refresh-btn { background: #7f8c8d; margin-bottom: 15px; padding: 8px 12px; font-size: 14px; width: auto; }
         button.refresh-btn:hover { background: #95a5a6; }
+        button.delete-btn { background: #e74c3c; padding: 6px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; width: auto; color: white; border: none; cursor: pointer; }
+        button.delete-btn:hover { background: #c0392b; }
         hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
         .status-badge { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
         .locked { background: #e74c3c; color: white; }
@@ -78,11 +80,12 @@
                     <th>Condition</th>
                     <th>Priority Score</th>
                     <th>Status</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody id="patient-table-body">
                 <tr>
-                    <td colspan="5" style="text-align: center; color: #7f8c8d;">Authenticate your session to pull live log tracks...</td>
+                    <td colspan="6" style="text-align: center; color: #7f8c8d;">Authenticate your session to pull live log tracks...</td>
                 </tr>
             </tbody>
         </table>
@@ -129,7 +132,6 @@
             const patientAge = parseInt(document.getElementById('age').value);
             let patientCondition = document.getElementById('condition').value;
 
-            // Normalize values before transmitting across the network API
             if (patientCondition.includes("Infectious")) {
                 patientCondition = "Infectious";
             } else if (patientCondition.includes("Respiratory")) {
@@ -189,12 +191,12 @@
                 tableBody.innerHTML = "";
 
                 if (!response.ok) {
-                    tableBody.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center;">Error loading queue tracks.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">Error loading queue tracks.</td></tr>`;
                     return;
                 }
 
                 if (!data.patients || data.patients.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#7f8c8d;">No evaluated patients found in the active database registry.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#7f8c8d;">No evaluated patients found in the active database registry.</td></tr>`;
                     return;
                 }
 
@@ -205,12 +207,36 @@
                         <td>${pt.condition}</td>
                         <td><span class="badge-priority">${pt.priorityScore}</span></td>
                         <td><span class="badge-status">${pt.status}</span></td>
+                        <td><button class="delete-btn" onclick="deletePatient('${pt.id}')">❌ Discharge</button></td>
                     </tr>`;
                     tableBody.innerHTML += row;
                 });
 
             } catch (err) {
                 console.error("Queue Retrieval Error:", err);
+            }
+        }
+
+        async function deletePatient(patientId) {
+            if (!confirm("Are you sure you want to discharge and remove this patient?")) return;
+
+            try {
+                const response = await fetch(`/api/patients/${patientId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert("Patient discharged. Bed space successfully freed.");
+                    fetchPatientQueue();
+                } else {
+                    alert(`Deletion Failed: ${result.error || 'Unable to delete'}`);
+                }
+            } catch (error) {
+                console.error("Delete Error:", error);
+                alert("Could not process network discharge command.");
             }
         }
     </script>
