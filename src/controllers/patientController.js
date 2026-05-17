@@ -1,48 +1,41 @@
 const prisma = require('../config/db');
 const { calculatePriority } = require('../services/priorityService');
 
+// CREATE A NEW PATIENT AND ASSIGN THE NEXT AVAILABLE BED EXCLUSIVELY
 exports.createPatient = async (req, res) => {
     try {
         const { name, age, condition, isHighRisk } = req.body;
         const priorityScore = calculatePriority({ age, condition, isHighRisk });
 
-        // Identify destination matching rules based on medical criteria
-        const isIsolationNeeded = (
-            condition === 'Infectious' || 
-            condition === 'Infectious Disease (Isolation Priority)' ||
-            condition === 'Respiratory' || 
-            condition === 'Respiratory Issues'
-        );
-        const targetRoomType = isIsolationNeeded ? 'Isolation' : 'Standard';
-
-        // Query database for the first open, matching vacant room model
+        // 1. Find the first empty room in the entire database (ignoring type parameters entirely)
         const availableRoom = await prisma.room.findFirst({
             where: {
-                type: targetRoomType,
                 isAvailable: true,
                 capacity: { gt: 0 }
+            },
+            orderBy: {
+                number: 'asc' // Fill rooms up in numerical sequence (101, 102, 103...)
             }
         });
 
         let assignedRoomId = null;
         let finalStatus = "Pending Assignment";
 
-        // Update room occupancy records atomically if space exists
+        // 2. Lock the room down atomically by dropping its remaining capacity to 0
         if (availableRoom) {
             assignedRoomId = availableRoom.id;
-            const newCapacity = availableRoom.capacity - 1;
             
             await prisma.room.update({
                 where: { id: availableRoom.id },
                 data: {
-                    capacity: newCapacity,
-                    isAvailable: newCapacity > 0
+                    capacity: 0,
+                    isAvailable: false // Room is now completely full
                 }
             });
             finalStatus = `Room ${availableRoom.number}`;
         }
 
-        // Save patient record linked directly to the room relational schema
+        // 3. Save patient record linked directly to their uniquely assigned room number
         const newPatient = await prisma.patient.create({
             data: {
                 name,
@@ -69,15 +62,14 @@ exports.createPatient = async (req, res) => {
     }
 };
 
+// RETRIEVE ALL SAVED PATIENTS FROM POSTGRESQL FOR USER DATA TABLE SHOWCASES
 exports.getAllPatients = async (req, res) => {
     try {
-        // Query database and populate matching room metrics automatically
         const patients = await prisma.patient.findMany({
             include: { room: true },
             orderBy: { priorityScore: 'desc' }
         });
 
-        // Map live properties to status string parameters for UI cards
         const formattedPatients = patients.map(pt => ({
             ...pt,
             status: pt.room ? `Room ${pt.room.number}` : "Pending Assignment"
@@ -90,48 +82,38 @@ exports.getAllPatients = async (req, res) => {
     }
 };
 
-// DELETE A PATIENT RECORD AND FREE UP BED CAPACITY ATOMICALLY
+// DISCHARGE PATIENT AND CLEANLY RESTORE INDIVIDUAL BED VACANCY CAPACITY
 exports.deletePatient = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const patient = await prisma.patient.findUnique({
-            where: { id }
-        });
+        const patient = await prisma.patient.findUnique({ where: { id } });
 
         if (!patient) {
             return res.status(404).json({ error: "Patient record not found." });
         }
 
+        // Reset the room capacity back to 1 bed open upon data profile removals
         if (patient.roomId) {
-            const assignedRoom = await prisma.room.findUnique({
-                where: { id: patient.roomId }
+            await prisma.room.update({
+                where: { id: patient.roomId },
+                data: {
+                    capacity: 1,
+                    isAvailable: true
+                }
             });
-
-            if (assignedRoom) {
-                const restoredCapacity = assignedRoom.capacity + 1;
-                await prisma.room.update({
-                    where: { id: patient.roomId },
-                    data: {
-                        capacity: restoredCapacity,
-                        isAvailable: true
-                    }
-                });
-            }
         }
 
-        await prisma.patient.delete({
-            where: { id }
-        });
+        await prisma.patient.delete({ where: { id } });
 
-        res.status(200).json({ message: "Patient record removed and bed capacity restored." });
+        res.status(200).json({ message: "Patient discharged and room freed dynamically." });
     } catch (error) {
         console.error("Database Deletion Failure:", error);
         res.status(500).json({ error: "Failed to execute patient removal tracking metrics." });
     }
 };
 
-// UPDATE AN EXISTING PATIENT DETAILS AND RECOMPUTE PRIORITY
+// INLINE ADMINISTRATIVE PROPERTY MODIFICATION LAYER
 exports.updatePatient = async (req, res) => {
     try {
         const { id } = req.params;
@@ -142,7 +124,6 @@ exports.updatePatient = async (req, res) => {
             return res.status(404).json({ error: "Patient record not found." });
         }
 
-        // Re-calculate priority score with new values
         const priorityScore = calculatePriority({ 
             age: parseInt(age), 
             condition, 
