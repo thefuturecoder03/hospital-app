@@ -6,7 +6,7 @@
     <title>Hospital Room Management System</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f9; display: flex; flex-direction: column; gap: 20px; }
-        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 700px; margin: auto; width: 100%; box-sizing: border-box; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 750px; margin: auto; width: 100%; box-sizing: border-box; }
         h1, h3 { color: #2c3e50; margin-top: 0; }
         input, select { width: 100%; padding: 10px; margin: 10px 0 20px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
         label { font-weight: bold; color: #34495e; }
@@ -16,6 +16,9 @@
         button:hover { background: #219653; }
         button.refresh-btn { background: #7f8c8d; margin-bottom: 15px; padding: 8px 12px; font-size: 14px; width: auto; }
         button.refresh-btn:hover { background: #95a5a6; }
+        .action-container { display: flex; gap: 5px; }
+        button.edit-btn { background: #f39c12; padding: 6px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; width: auto; color: white; border: none; cursor: pointer; }
+        button.edit-btn:hover { background: #d35400; }
         button.delete-btn { background: #e74c3c; padding: 6px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; width: auto; color: white; border: none; cursor: pointer; }
         button.delete-btn:hover { background: #c0392b; }
         hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
@@ -80,7 +83,7 @@
                     <th>Condition</th>
                     <th>Priority Score</th>
                     <th>Status</th>
-                    <th>Action</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="patient-table-body">
@@ -207,13 +210,52 @@
                         <td>${pt.condition}</td>
                         <td><span class="badge-priority">${pt.priorityScore}</span></td>
                         <td><span class="badge-status">${pt.status}</span></td>
-                        <td><button class="delete-btn" onclick="deletePatient('${pt.id}')">❌ Discharge</button></td>
+                        <td>
+                            <div class="action-container">
+                                <button class="edit-btn" onclick="editPatient('${pt.id}', '${pt.name}', ${pt.age}, '${pt.condition}')">✏️ Edit</button>
+                                <button class="delete-btn" onclick="deletePatient('${pt.id}')">❌ Discharge</button>
+                            </div>
+                        </td>
                     </tr>`;
                     tableBody.innerHTML += row;
                 });
 
             } catch (err) {
                 console.error("Queue Retrieval Error:", err);
+            }
+        }
+
+        async function editPatient(id, oldName, oldAge, oldCondition) {
+            const newName = prompt("Enter updated patient name:", oldName);
+            if (!newName) return;
+
+            const newAgeStr = prompt("Enter updated patient age:", oldAge);
+            if (!newAgeStr) return;
+            const newAge = parseInt(newAgeStr);
+
+            const newCondition = prompt("Enter condition (Standard, Respiratory, or Infectious):", oldCondition);
+            if (!newCondition) return;
+
+            try {
+                const response = await fetch(`/api/patients/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ name: newName, age: newAge, condition: newCondition })
+                });
+
+                if (response.ok) {
+                    alert("Patient details updated and priority metrics re-calculated successfully!");
+                    fetchPatientQueue();
+                } else {
+                    const errData = await response.json();
+                    alert(`Update Failed: ${errData.error || 'Unable to update'}`);
+                }
+            } catch (error) {
+                console.error("Update request failure:", error);
+                alert("Could not communicate change command to server backend.");
             }
         }
 
@@ -226,17 +268,14 @@
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
 
-                const result = await response.json();
-
                 if (response.ok) {
                     alert("Patient discharged. Bed space successfully freed.");
                     fetchPatientQueue();
                 } else {
-                    alert(`Deletion Failed: ${result.error || 'Unable to delete'}`);
+                    alert("Deletion Failed.");
                 }
             } catch (error) {
                 console.error("Delete Error:", error);
-                alert("Could not process network discharge command.");
             }
         }
     </script>

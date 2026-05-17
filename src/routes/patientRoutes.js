@@ -5,8 +5,9 @@ const authMiddleware = require('../middlewares/authMiddleware');
 
 router.post('/', authMiddleware, patientController.createPatient);
 router.get('/', authMiddleware, patientController.getAllPatients);
-
-// Delete patient route mapping wrapped with authentication protection
 router.delete('/:id', authMiddleware, patientController.deletePatient);
+
+// Edit patient route mapping wrapped with authentication protection
+router.put('/:id', authMiddleware, patientController.updatePatient);
 
 module.exports = router;
