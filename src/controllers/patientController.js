@@ -1,32 +1,37 @@
 const prisma = require('../config/db');
 const { calculatePriority } = require('../services/priorityService');
 
-// CREATE A NEW PATIENT AND ASSIGN THE CHOSEN DROPDOWN BED EXCLUSIVELY
+// CREATE A NEW PATIENT AND AUTOMATICALLY ROUTE TO THE NEXT SEQUENTIAL EMPTY ROOM
 exports.createPatient = async (req, res) => {
     try {
-        const { name, age, condition, isHighRisk, selectedRoomId } = req.body;
+        const { name, age, condition, isHighRisk } = req.body;
         const priorityScore = calculatePriority({ age, condition, isHighRisk });
 
-        if (!selectedRoomId) {
-            return res.status(400).json({ error: "Please manually select an available room assignment." });
-        }
-
-        const targetedRoom = await prisma.room.findUnique({
-            where: { id: selectedRoomId }
+        // 1. Automatic Core: Grab the first open room in the database (101, 102, 103...)
+        const availableRoom = await prisma.room.findFirst({
+            where: {
+                isAvailable: true,
+                capacity: { gt: 0 }
+            },
+            orderBy: {
+                number: 'asc' // Keeps them in sequential numerical sequence
+            }
         });
 
-        if (!targetedRoom || !targetedRoom.isAvailable || targetedRoom.capacity <= 0) {
-            return res.status(400).json({ error: "The chosen room has just been occupied. Please refresh and select another." });
+        if (!availableRoom) {
+            return res.status(400).json({ error: "The hospital is fully occupied. No vacant rooms remain." });
         }
 
+        // 2. Lock the room down atomically by dropping its remaining capacity to 0
         await prisma.room.update({
-            where: { id: selectedRoomId },
+            where: { id: availableRoom.id },
             data: {
                 capacity: 0,
                 isAvailable: false
             }
         });
 
+        // 3. Save patient record linked directly to their automatically assigned room ID
         const newPatient = await prisma.patient.create({
             data: {
                 name,
@@ -34,22 +39,22 @@ exports.createPatient = async (req, res) => {
                 condition,
                 priorityScore,
                 isHighRisk: !!isHighRisk,
-                roomId: selectedRoomId
+                roomId: availableRoom.id
             }
         });
 
         res.status(201).json({
-            message: "Patient evaluated and assigned to chosen room.",
+            message: "Patient evaluated and automatically routed to an open room.",
             patient: {
                 id: newPatient.id,
                 name: newPatient.name,
                 priorityScore: newPatient.priorityScore,
-                status: `Room ${targetedRoom.number}`
+                status: `Room ${availableRoom.number}`
             }
         });
     } catch (error) {
         console.error("Database Transaction Failure:", error);
-        res.status(500).json({ error: "Failed to execute user-selected room routing parameters." });
+        res.status(500).json({ error: "Failed to execute automated room routing parameters." });
     }
 };
 
@@ -92,7 +97,7 @@ exports.deletePatient = async (req, res) => {
     }
 };
 
-// UPDATE AN EXISTING PATIENT'S DEMOGRAPHICS AND ROOM HOUSING ASSIGNMENT
+// UPDATE AN EXISTING PATIENT'S DEMOGRAPHICS AND USER-SELECTED ROOM HOUSING
 exports.updatePatient = async (req, res) => {
     try {
         const { id } = req.params;
@@ -103,7 +108,7 @@ exports.updatePatient = async (req, res) => {
             return res.status(404).json({ error: "Patient record not found." });
         }
 
-        // Re-calculate priority scoring metrics using the newly supplied values
+        // Re-calculate priority score matrix metrics dynamically using the updated values
         const priorityScore = calculatePriority({ 
             age: parseInt(age), 
             condition, 
@@ -112,7 +117,7 @@ exports.updatePatient = async (req, res) => {
 
         let finalRoomId = existingPatient.roomId;
 
-        // Execute room reallocation routines if a specific newRoomId is target mapped
+        // Coordinate Room Swapping Logic if a different room was explicitly specified during edits
         if (newRoomId && newRoomId !== existingPatient.roomId) {
             
             const targetRoom = await prisma.room.findUnique({ where: { id: newRoomId } });
@@ -120,7 +125,7 @@ exports.updatePatient = async (req, res) => {
                 return res.status(400).json({ error: "Selected room is already occupied." });
             }
 
-            // Free up the patient's previous room footprint
+            // Free up the old room space (restore its vacancy capacity back to 1 bed open)
             if (existingPatient.roomId) {
                 await prisma.room.update({
                     where: { id: existingPatient.roomId },
@@ -128,7 +133,7 @@ exports.updatePatient = async (req, res) => {
                 });
             }
 
-            // Lock down the newly requested bed space vacancy tracker
+            // Lock down the new target room bed space (drop remaining capacity to 0)
             await prisma.room.update({
                 where: { id: newRoomId },
                 data: { capacity: 0, isAvailable: false }
@@ -137,7 +142,7 @@ exports.updatePatient = async (req, res) => {
             finalRoomId = newRoomId;
         }
 
-        // Commit all parameter tracking data to the database row record
+        // Commit all synchronized data updates to the database registry
         const updatedPatient = await prisma.patient.update({
             where: { id },
             data: {
@@ -150,9 +155,9 @@ exports.updatePatient = async (req, res) => {
             }
         });
 
-        res.status(200).json({ message: "Patient details and housing reallocated successfully.", patient: updatedPatient });
+        res.status(200).json({ message: "Patient metrics updated successfully.", patient: updatedPatient });
     } catch (error) {
         console.error("Database Modification Failure:", error);
-        res.status(500).json({ error: "Failed to execute patient update metrics." });
+        res.status(500).json({ error: "Failed to execute update metrics." });
     }
 };

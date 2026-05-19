@@ -49,7 +49,7 @@
         <button class="login-btn" onclick="loginStaff()">Authenticate Session</button>
     </div>
 
-    <!-- Patient Intake Card -->
+    <!-- Patient Intake Card (ORIGINAL STYLE: AUTOMATED SEQUENTIAL ROOM SELECTION) -->
     <div class="card">
         <h1>🏥 Hospital Management</h1>
         <hr>
@@ -66,12 +66,6 @@
             <option value="Standard">Standard Care</option>
             <option value="Respiratory">Respiratory Issues</option>
             <option value="Infectious">Infectious Disease (Isolation Priority)</option>
-        </select>
-        
-        <!-- Live Database Driven Manual Room Dropdown Selector -->
-        <label for="room-select">Assign Available Room:</label>
-        <select id="room-select">
-            <option value="">-- Authenticate session to discover open rooms --</option>
         </select>
         
         <button onclick="admitPatient()">Evaluate & Assign Room</button>
@@ -122,43 +116,12 @@
                     document.getElementById('auth-status').className = "status-badge unlocked";
                     alert("Authentication successful! Session unlocked.");
                     fetchPatientQueue();
-                    populateAvailableRooms();
                 } else {
                     alert(`Login Failed: ${result.message || 'Invalid credentials'}`);
                 }
             } catch (error) {
                 console.error('Auth Error:', error);
                 alert('Connection to auth engine failed.');
-            }
-        }
-
-        async function populateAvailableRooms() {
-            if (!authToken) return;
-            const roomSelect = document.getElementById('room-select');
-            
-            try {
-                const response = await fetch('/api/rooms/available', {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                const data = await response.json();
-                
-                roomSelect.innerHTML = "";
-                
-                if (!data.rooms || data.rooms.length === 0) {
-                    roomSelect.innerHTML = '<option value="">-- No vacant rooms available (Hospital Full) --</option>';
-                    return;
-                }
-                
-                data.rooms.forEach(room => {
-                    const opt = document.createElement('option');
-                    opt.value = room.id;
-                    opt.textContent = `Room ${room.number} (Available)`;
-                    roomSelect.appendChild(opt);
-                });
-            } catch (err) {
-                console.error("Dropdown Generation Error:", err);
-                roomSelect.innerHTML = '<option value="">-- Error fetching vacant beds --</option>';
             }
         }
 
@@ -171,7 +134,6 @@
             const patientName = document.getElementById('name').value;
             const patientAge = parseInt(document.getElementById('age').value);
             let patientCondition = document.getElementById('condition').value;
-            const roomIdVal = document.getElementById('room-select').value;
 
             if (patientCondition.includes("Infectious")) {
                 patientCondition = "Infectious";
@@ -183,10 +145,6 @@
 
             if (!patientName || !patientAge) {
                 alert('Please enter a name and age.');
-                return;
-            }
-            if (!roomIdVal) {
-                alert('Please pick an open room assignment option.');
                 return;
             }
 
@@ -201,8 +159,7 @@
                         name: patientName,
                         age: patientAge,
                         condition: patientCondition,
-                        isHighRisk: patientAge > 70,
-                        selectedRoomId: roomIdVal
+                        isHighRisk: patientAge > 70
                     })
                 });
 
@@ -211,7 +168,6 @@
                 if (response.ok) {
                     alert(`📋 Evaluation Complete!\n\nPatient: ${result.patient.name}\nPriority Score: ${result.patient.priorityScore}\nStatus: ${result.patient.status}`);
                     fetchPatientQueue();
-                    populateAvailableRooms();
                     document.getElementById('name').value = "";
                     document.getElementById('age').value = "";
                 } else {
@@ -283,7 +239,7 @@
             const newCondition = prompt("Enter condition (Standard, Respiratory, or Infectious):", oldCondition);
             if (!newCondition) return;
 
-            // Step 4: Conditional room modification verification sequence
+            // Final Step: Ask for the room swap manual override number
             const wantRoomChange = confirm(`Current Assignment: Room ${oldRoomNumber || 'None'}\n\nDo you want to switch this patient to a different room?`);
             let targetRoomId = null;
 
@@ -305,14 +261,13 @@
                         name: newName, 
                         age: newAge, 
                         condition: newCondition,
-                        newRoomId: targetRoomId // Pass housing variable if modified
+                        newRoomId: targetRoomId // Pass target room payload variables if modified
                     })
                 });
 
                 if (response.ok) {
-                    alert("Patient record data and room allocations updated successfully!");
+                    alert("Patient details and room assignments updated successfully!");
                     fetchPatientQueue();
-                    populateAvailableRooms();
                 } else {
                     const errData = await response.json();
                     alert(`Update Failed: ${errData.error || 'Unable to process update parameters.'}`);
@@ -335,7 +290,6 @@
                 if (response.ok) {
                     alert("Patient discharged. Bed space successfully freed.");
                     fetchPatientQueue();
-                    populateAvailableRooms();
                 } else {
                     alert("Deletion Failed.");
                 }
